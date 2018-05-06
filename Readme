@@ -7,5 +7,10 @@ http://www.jscape.com/blog/setting-up-sftp-public-key-authentication-command-lin
 STEP 2
 Set-up the shell script to exchange files between Rpi and main computer
 EpSentinel_exchange.sh
+Add it to your "application at start-up"
+
+STEP 3
+Launch the python daemon on your RPi
+EpSentinel.py
 
 
