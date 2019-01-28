@@ -6,6 +6,7 @@ import requests
 import datetime
 #from EpConf import *
 from bs4 import BeautifulSoup
+import re
 
 
 def get_tvseries(db_file):
@@ -37,38 +38,89 @@ def look_tpb(name, ep_number_ep_date, tpb, number_links):
     """Looks for the link to episode torrent on TPB
     Returns tuple: ([(str name, str link) * number_links], bool error_code)"""
 
-    error = 0
+    request_error = ""
     ep_number, ep_date = ep_number_ep_date
     se = str(ep_number // 100).zfill(2)
     ep = str(ep_number%100).zfill(2)
 
     # Import the search result page from piratebay
     url = tpb+"search/"+name+"%20s"+se+"e"+ep+"/0/7/0"
-    print("Looking for episode: "+str(ep_number))
-    page = requests.get(url)
+    print("Looking on TPB for episode: "+str(ep_number))
+
+    try:
+        page = requests.get(url)
+
+    except Exception as e:  # Handling requests errors
+        print("Error while connecting to TPB: " + repr(e))
+        result_url = [(repr(e), "#")]
+        for i in range(number_links - 1):
+            result_url.append(("-", "#"))
+        return result_url
 
     # Create the soup
     soup = BeautifulSoup(page.content, 'html.parser')
 
     # Find most seeded link
     links_exist = soup.select("div.detName")
-    if len(links_exist) > 0:
-        if len(links_exist) >= number_links:
-            result_url = [(soup.select("div.detName")[i].select("a")[0].get_text(),
-                           tpb+soup.select("div.detName")[i].select("a")[0].get("href")) for i in range(number_links)]
-        else:
-            result_url = [(soup.select("div.detName")[i].select("a")[0].get_text(),
-                           tpb + soup.select("div.detName")[i].select("a")[0].get("href")) for i in range(len(links_exist))]
-        print("Found! Thank you EpSentinel")
 
-    else:
-        result_url = ""
-        error = 1
-        print("Not found on TPB")
+    # Dump links found
+    result_url = [(soup.select("div.detName")[i].select("a")[0].get_text(),
+                   tpb+soup.select("div.detName")[i].select("a")[0].get("href"))
+                  for i in range(min(len(links_exist), number_links))]
+    # Add "Not found" links if necessary
+    for i in range(number_links - len(links_exist)):
+        result_url.append(("Not found","#"))
 
-    print(result_url, error)
+    return result_url
 
-    return result_url, error
+
+def new_show(name, missing_num):
+    """Inserts new table with header for a new show"""
+
+    # Format id of the table to alphanumeric char only
+    pattern = re.compile('[\W]+')
+    id = pattern.sub('', name)
+
+    s = """
+        <table id="{id}">
+        <thead>
+            <tr>
+                <th colspan="4" class="left-text">{name} ({missing_num}) <span class="ui-icon ui-icon-caret-2-n-s expand"</th>
+            </tr>
+        </thead>
+        <tbody hidden>""".format(id=id, name=name, missing_num=missing_num)
+
+    return s
+
+
+def insert(ep, href):
+    """Insert in the page all the links given by href (look_tpb function output)"""
+
+    s = """<tr><td class="left-text">{name_ep}</td>""".format(name_ep = ep)
+
+    for link_name, link_href in href:
+        s += """<td><a href={href} target="_blank">{ln}</a></td>""".format(href=link_href, ln=link_name)
+    s += "</tr>"
+
+    return s
+
+
+def close_show():
+    """Close properly the table for one show"""
+
+    return "</tbody></table></br>"
+
+
+def insert_next(next_ep):
+    """Insert the next episode for a show in the Next episodes table"""
+
+    s = """<tr>
+                <td class="left-text">{name_show}</td>
+                <td>{episode}</td>
+                <td>{date}</td>
+           </tr>""".format(name_show=next_ep[0], episode=str(next_ep[1]), date=str(next_ep[2]))
+
+    return s
 
 
 class TVShow:
@@ -82,44 +134,58 @@ class TVShow:
     def __repr__(self):
         return self.name+": KodID-"+str(self.KodID)+" TheTVdbID-"+self.thetvdbID
 
-    def webscrap(self):
+    def webscrap(self, token):
         """Gets all show episodes from thetvdb websites
 
-        Returns list: [(int EpisodeNumber e.g. 101, datetime.date(airdate))]"""
+        Returns tuple: ([(int EpisodeNumber e.g. 101, datetime.date(airdate))], (next episode number, next episode airdate))"""
 
         episodes = []
+        date_pattern = '[0-9]{4}-[0-9]{2}-[0-9]{2}'
+        last_page = 0
+        page = 1
 
-        # Import the page from theTVdb
-        page = requests.get("https://www.thetvdb.com/index.php?id={}&lid=7&tab=seasonall&order=aired".format(self.thetvdbID))
+        # GET requests to scrap all episodes
+        while last_page == 0:
+            # Request for API page about the episode
+            headers = {"Authorization": "Bearer {}".format(token), "Accept-Language": "en"}
+            url = "https://api.thetvdb.com/series/{id}/episodes?page={page}".format(id=self.thetvdbID, page=page)
+            r = requests.get(url, headers=headers)
 
-        # Create the soup
-        soup = BeautifulSoup(page.content, 'html.parser')
-        listtable = soup.find(id="listtable").find_all('tr')
-        del listtable[0]
+            # Scrap all episodes of the page received
+            for episode in r.json()['data']:
+                # Get EpNumber
+                epnum = episode["airedEpisodeNumber"]
+                epseas = episode["airedSeason"]
+                absnum = 100*epseas+epnum
 
-        # Find latest aired episode
-        for episode in listtable:
+                if epnum > 0 and epseas > 0 and re.match(date_pattern, episode["firstAired"]):
+                    # Get EpDate
+                    date_tab = episode["firstAired"].split("-")
+                    airdate = datetime.date(int(date_tab[0]), int(date_tab[1]), int(date_tab[2]))
 
-            tdlist = episode.find_all('td')
+                    # Append Ep if already casted
+                    #if airdate < datetime.date.today():
+                    episodes.append((absnum, airdate))
 
-            # Re-format the episode number
-            number = tdlist[0].get_text()
-            date = tdlist[2].get_text()
-
-            if number == 'Special':
-                pass
-
-            elif date == '':
-                pass
-
+            # Look if there is an other page
+            if r.json()['links']['next'] is not None:
+                page += 1
             else:
-                # Re-format the date
-                date_tab = date.split("-")
-                airdate = datetime.date(int(date_tab[0]), int(date_tab[1]), int(date_tab[2]))
-                if airdate < datetime.date.today():
-                    episodes.append((100*int(number.split()[0])+int(number.split()[2]), airdate))
+                last_page = 1
 
-        return episodes
+        # Sort episodes by date to determine when will be the next one
+        episodes.sort(key=lambda tup: tup[1])
+
+        # Divide b/w past and future episodes
+        ep_pasts = [ep for ep in episodes if ep[1] < datetime.date.today()]
+        ep_fut = [ep for ep in episodes if ep[1] > datetime.date.today()]
+
+        if len(ep_fut) > 0:
+            next_ep = ep_fut[0]
+        else:
+            next_ep = (0, 0)
+
+        return ep_pasts, next_ep[0], next_ep[1]
 
     def localscrap(self, db_file):
         """Get all show episodes available on Kodi DB
@@ -143,13 +209,12 @@ class TVShow:
 
         return eplist
 
-    def missing_ep(self, db_file):
+    def missing_ep(self, db_file, web_eplist):
         """Check for missing episodes on local Kodi
 
         Returns list: [(int EpisodeNumber e.g. 101, datetime.date(airdate))]"""
 
         missing_ep = []
-        web_eplist = self.webscrap()
         local_eplist = self.localscrap(db_file)
 
         for ep in web_eplist:
@@ -173,8 +238,17 @@ class HtmlSummary:
         f = open(self.path, 'w')
         f.write("""<!DOCTYPE html>
                     <html lang="en" dir="ltr">
-                      <head>
-                        <style>
+                      <head>                       
+                          <meta charset="utf-8">
+                          <meta name="viewport" content="width=device-width, initial-scale=1">
+                          <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+                          <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css">
+                          <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+                          <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+                          <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"></script>
+                          <title>EpSentinel links sponsored by TPB</title>
+                          
+                          <style>
                           table {
                               font-family: arial, sans-serif;
                               border-collapse: collapse;
@@ -195,68 +269,63 @@ class HtmlSummary:
                               background-color: #dddddd;
                           }
                         </style>
-                        <meta charset="utf-8">
-                        <title>EpSentinel links sponsored by TPB</title>
+                        
                       </head>
                     
                       <body>
+                        <div class="container-fluid">
+                        <div class="row">
+                        <div class="col-xs-8">
                     """)
         f.close()
 
-    def new_show(self, name):
-        """Inserts new table with header for a new show"""
+    def open_table_next(self):
+        """Closes the table col of missing episodes and opens the col for next episodes table"""
 
         f = open(self.path, 'a')
-        s = """<table>
-                <tr>
-                    <th colspan="4" class="left-text">{}</th>
-                </tr>""".format(name)
-
-        f.write(s)
+        f.write("""
+        </div>
+        <div class="col-xs-4">
+        <table id="next_ep">
+        <thead>
+            <tr>
+                <th>Coming episodes</th>
+                <th>#</th>
+                <th>Date</th>
+            </tr>
+        </thead>
+        <tbody>""")
         f.close()
 
-    def close_show(self):
-        """Close properly the table for one show"""
+    def dump_html(self, html):
+        """Dump a complete html string in the html file"""
 
         f = open(self.path, 'a')
-        f.write("</table></br>")
+        f.write(html)
         f.close()
 
-    def insert(self, ep, href_error):
-        """Insert in the page all the links given by href_error (look_tpb function output)"""
-
-        f = open(self.path, 'a')
-
-        s = """<tr>
-                <td class="left-text">{name_ep}</td>""".format(name_ep = ep)
-        f.write(s)
-
-        if href_error[1] == 0:
-            # At least one link has been found
-            for link_name, link_href in href_error[0]:
-                s = """<td><a href={href} target="_blank">{ln}</a></td>""".format(href=link_href, ln=link_name)
-                f.write(s)
-            for i in range(3-len(href_error[0])):
-                f.write("""<td>-</td>""")
-        else:
-            #No link has been found
-            for i in range(3):
-                f.write("""<td>-</td>""")
-        f.close()
 
     def close(self):
         """Closes HTML tags to properly end HTML output file"""
 
         f = open(self.path, 'a')
-        f.write("</body></html>")
+        f.write(
+                """
+                </tbody>
+                </div>
+                </div>
+                </div>
+                
+                <script type="text/javascript">
+                    $(document).ready(function () {
+                        $(".expand").click(function () {
+                        var myid = $(this).closest('table').attr('id')
+                           $('#'+myid+' tbody').toggle("slow");
+                            });
+                          });
+                </script>
+                
+                </body></html>"""
+                )
         f.close()
 
-
-#tvlist = get_tvseries(db_path)
-#print(tvlist)
-#web_eplist = tvlist[0].webscrap()
-#print(web_eplist)
-#local_eplist = tvlist[0].localscrap(db_path)
-#print(local_eplist)
-#missing_ep = tvlist[0].missing_ep(db_path)
-#print(len(missing_ep))
