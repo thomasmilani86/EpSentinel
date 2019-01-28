@@ -1,4 +1,4 @@
-db_path = "/home/thomas/.kodi/userdata/Database/MyVideos93.db"
 tpb = "https://pirateproxy.sh/"
-out_path = "/home/thomas/"
+db_path = "/home/thomas/.kodi/userdata/Database/MyVideos93.db"
+out_path = "/home/thomas/PycharmProjects/EpSentinel/"
 number_links = 3

@@ -22,21 +22,38 @@
           background-color: #dddddd;
       }
     </style>
+
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.3.1/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/themes/smoothness/jquery-ui.css">
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.12.1/jquery-ui.min.js"></script>
+
     <meta charset="utf-8">
     <title>EpSentinel links sponsored by TPB</title>
   </head>
 
   <body>
-    <table>
-      <tr>
-        <th colspan="4" class="left-text">The 100</th>
-      </tr>
-      <tr>
-        <td class="left-text">101</td>
-        <td>Link1</td>
-        <td>Link2</td>
-        <td>Link3</td>
-      </tr>
-    </table>
+    <table id="the100">
+      <thead>
+        <tr>
+          <th colspan="4" class="left-text">The 100 <span class="ui-icon ui-icon-caret-2-n-s expand"></span></th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td class="left-text">501</td><td><a href="https://pirateproxy.sh//torrent/21253060/The.100.S05E01.HDTV.x264-SVA" target="_blank">The.100.S05E01.HDTV.x264-SVA</a></td><td><a href="https://pirateproxy.sh//torrent/21253154/The.100.S05E01.720p.HDTV.x264-SVA" target="_blank">The.100.S05E01.720p.HDTV.x264-SVA</a></td><td><a href="https://pirateproxy.sh//torrent/21251306/The.100.S05E01.HDTV.x264-SVA[ettv]" target="_blank">The.100.S05E01.HDTV.x264-SVA[ettv]</a></td></tr><tr>
+          <td class="left-text">502</td><td><a href="https://pirateproxy.sh//torrent/21554904/The.100.S05E02.720p.HDTV.x264-SVA" target="_blank">The.100.S05E02.720p.HDTV.x264-SVA</a></td><td><a href="https://pirateproxy.sh//torrent/21558582/The.100.S05E02.WEBRip.x264-PBS" target="_blank">The.100.S05E02.WEBRip.x264-PBS</a></td><td><a href="https://pirateproxy.sh//torrent/21552973/The.100.S05E02.WEBRip.x264-PBS[ettv]" target="_blank">The.100.S05E02.WEBRip.x264-PBS[ettv]</a></td></tr><tr>
+          <td class="left-text">503</td><td><a href="https://pirateproxy.sh//torrent/21805305/The.100.S05E03.WEBRip.x264-ION10" target="_blank">The.100.S05E03.WEBRip.x264-ION10</a></td><td><a href="https://pirateproxy.sh//torrent/21804888/The.100.S05E03.WEBRip.x264-PBS[ettv]" target="_blank">The.100.S05E03.WEBRip.x264-PBS[ettv]</a></td><td><a href="https://pirateproxy.sh//torrent/21805287/The.100.S05E03.Sleeping.Giants.720p.AMZN.WEBRip.DDP5.1.x264-C" target="_blank">The.100.S05E03.Sleeping.Giants.720p.AMZN.WEBRip.DDP5.1.x264-C</a></td></tr><tr>
+          <td class="left-text">504</td><td><a href="https://pirateproxy.sh//torrent/21993368/The.100.S05E04.WEBRip.x264-PBS[ettv]" target="_blank">The.100.S05E04.WEBRip.x264-PBS[ettv]</a></td><td><a href="https://pirateproxy.sh//torrent/22014244/The.100.S05E04.HDTV.x264-KILLERS" target="_blank">The.100.S05E04.HDTV.x264-KILLERS</a></td><td><a href="https://pirateproxy.sh//torrent/21990361/The.100.S05E04.Pandoras.Box.720p.AMZN.WEB-DL.DDP5.1.H.264-Cas..." target="_blank">The.100.S05E04.Pandoras.Box.720p.AMZN.WEB-DL.DDP5.1.H.264-Cas...</a></td></tr>
+        </tbody>
+      </table>
+
+      <script type="text/javascript">
+        $(document).ready(function () {
+          $(".expand").click(function () {
+           $("#the100 tbody").toggle("slow");
+            });
+          });
+      </script>
+
   </body>
 </html>

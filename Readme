@@ -10,7 +10,8 @@ EpSentinel_exchange.sh
 Add it to your "application at start-up"
 
 STEP 3
-Launch the python daemon on your RPi
-EpSentinel.py
+Copy EpSentinel files to your Rpi (EpSentinel.py//EpSource.py//EpConf.py) - EpConf to be modified to suit your installation 
+Add the cron job "rpi_crontab.txt" on your Rpi
+
 
 
